@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Romany Score - Prototype</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial; background: linear-gradient(120deg,#f7fbff,#fff8f0); color:#222; margin:0; padding:20px; direction:rtl}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .userbox{font-weight:600}
+    .topbtns button{margin-left:8px}
+    main{max-width:1000px;margin:0 auto;background:white;padding:18px;border-radius:12px;box-shadow:0 6px 20px rgba(20,30,60,0.08)}
+    .page{display:none}
+    .page.active{display:block}
+    .controls{display:flex;justify-content:space-between;margin:12px 0}
+    .players-list, .games-list{display:flex;gap:8px;flex-wrap:wrap}
+    .card{padding:10px;border-radius:10px;border:1px solid #eee;background:#fafafa}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #eee;padding:6px;text-align:center}
+    .btn{padding:8px 12px;border-radius:8px;border:0;background:#1976d2;color:white;cursor:pointer}
+    .btn.gray{background:#888}
+    .inline{display:inline-block}
+    .muted{color:#666;font-size:13px}
+    .danger{background:#d32f2f}
+    .dark{background:#333;color:#fff}
+  </style>
+</head>
+<body>
+<header>
+  <div class="topbtns">
+    <button id="logoutBtn" class="btn gray" style="display:none">🚪 خروج</button>
+    <button id="activateBtn" class="btn gray" style="display:none">🔄 تنشيط</button>
+  </div>
+  <div class="userbox" id="userBox">غير مسجل</div>
+</header>
+
+<main>
+  <!-- Navigation (Next/Back persistent) -->
+  <div class="controls">
+    <button id="backBtn" class="btn gray">⏮️ رجوع</button>
+    <div>
+      <button id="nextBtn" class="btn">⏭️ تقدم</button>
+    </div>
+  </div>
+
+  <!-- Pages -->
+  <div id="pageLogin" class="page active">
+    <h2>0️⃣ صفحة الدخول</h2>
+    <p>اختر اسم من القائمة أو سجّل طلب جديد. كلمة السر الافتراضية: <strong>6666</strong></p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="loginSelect"></select>
+      <input id="loginPass" type="password" placeholder="الرقم السري" />
+      <button id="loginBtn" class="btn">🔑 دخول</button>
+      <button id="openRegister" class="btn gray">🆕 تسجيل لاعب جديد</button>
+      <button id="loginAdmin" class="btn dark">👤 دخول كمدير</button>
+    </div>
+    <p id="loginMsg" class="muted"></p>
+  </div>
+
+  <div id="pageRegister" class="page">
+    <h2>1️⃣ تسجيل لاعب جديد</h2>
+    <div style="max-width:400px">
+      <label>الاسم</label><br>
+      <input id="regName" /><br>
+      <label>كلمة السر</label><br>
+      <input id="regPass" value="6666" /><br>
+      <label>شكل اللاعب</label><br>
+      <select id="regIcon">
+        <option>👦</option><option>👧</option><option>🧑</option><option>🧓</option>
+      </select><br><br>
+      <button id="sendReq" class="btn">إرسال طلب تسجيل</button>
+      <p class="muted">سيصل طلب للمدير للموافقة.</p>
+    </div>
+  </div>
+
+  <div id="pageHome" class="page">
+    <h2>2️⃣ صفحة اللاعب</h2>
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:1">
+        <div class="card">
+          <div><strong>الألعاب</strong></div>
+          <select id="gameSelect"></select>
+          <div style="margin-top:8px">
+            <button id="startGameBtn" class="btn">▶️ ابدأ جيم جديد</button>
+            <button id="openGamesBtn" class="btn gray">📂 الجيمات الجارية والمنتهية</button>
+            <button id="openStatsBtn" class="btn gray">📊 إحصائياتي</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:10px">
+          <div><strong>إحصاءات</strong></div>
+          <div id="statsSummary" class="muted"></div>
+        </div>
+      </div>
+
+      <div style="width:320px">
+        <div class="card">
+          <div><strong>اللاعبون</strong></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <div style="flex:1">
+              <div class="muted">Online</div>
+              <div id="onlineList" class="players-list"></div>
+            </div>
+            <div style="flex:1">
+              <div class="muted">Offline</div>
+              <div id="offlineList" class="players-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pageGames" class="page">
+    <h2>3️⃣ الجيمات الجارية والمنتهية</h2>
+    <div class="card">
+      <div><strong>جارية</strong></div>
+      <div id="runningGames" class="games-list"></div>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <div><strong>منتهية</strong></div>
+      <div id="finishedGames" class="games-list"></div>
+    </div>
+  </div>
+
+  <div id="pageGame" class="page">
+    <h2>4️⃣ صفحة الجيم</h2>
+    <div id="gameHeader" class="card"></div>
+    <div id="topPlayers" style="display:flex;gap:8px;margin-top:10px"></div>
+    <div style="margin-top:10px">
+      <button id="addRoundBtn" class="btn">➕ إضافة جولة</button>
+      <button id="endGameBtn" class="btn danger">✅ إنهاء الجيم</button>
+    </div>
+    <div id="roundsArea"></div>
+  </div>
+
+  <div id="pageAdmin" class="page">
+    <h2>5️⃣ لوحة المدير</h2>
+    <div style="display:flex;gap:12px">
+      <div style="flex:1" class="card">
+        <h4>طلبات التسجيل</h4>
+        <div id="requests"></div>
+        <h4>قائمة اللاعبين (تحرير)</h4>
+        <div id="adminPlayers"></div>
+      </div>
+      <div style="flex:1" class="card">
+        <h4>قائمة الألعاب</h4>
+        <div id="adminGames"></div>
+        <button id="addGameBtn" class="btn">إضافة لعبة</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pageStats" class="page">
+    <h2>6️⃣ صفحة الإحصائيات</h2>
+    <div id="statsArea"></div>
+  </div>
+
+  <footer style="margin-top:18px" class="muted">Prototype - قابل للتعديل لاحقًا</footer>
+</main>
+
+<script>
+// ======= ضع firebaseConfig هنا =======
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+// =====================================
+
+// تهيئة Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// صفحات وتنقل
+const pages = ['pageLogin','pageRegister','pageHome','pageGames','pageGame','pageAdmin','pageStats'];
+let pageIndex = 0;
+function showPage(i){
+  pageIndex = Math.max(0, Math.min(i, pages.length-1));
+  pages.forEach((p,idx)=> document.getElementById(p).classList.toggle('active', idx===pageIndex));
+  // تحديث أزرار
+  document.getElementById('backBtn').style.display = pageIndex===0 ? 'none':'inline-block';
+  document.getElementById('nextBtn').style.display = pageIndex===pages.length-1 ? 'none':'inline-block';
+}
+document.getElementById('nextBtn').onclick = ()=> showPage(pageIndex+1);
+document.getElementById('backBtn').onclick = ()=> showPage(pageIndex-1);
+
+// عناصر ثابتة
+const loginSelect = document.getElementById('loginSelect');
+const loginBtn = document.getElementById('loginBtn');
+const loginMsg = document.getElementById('loginMsg');
+const openRegister = document.getElementById('openRegister');
+const sendReq = document.getElementById('sendReq');
+const loginAdmin = document.getElementById('loginAdmin');
+const logoutBtn = document.getElementById('logoutBtn');
+const activateBtn = document.getElementById('activateBtn');
+
+// بيانات محلية
+let currentUser = null;
+let localState = { players:[], games:[], requests:[], gamesObj:{} };
+
+// قائمة افتراضية للاعبين والالعاب
+const defaultPlayers = [
+  'روماني','عبير','جورج','نرمين','هاني','نيبال','شنوده','هناء'
+];
+const defaultGames = ['كنكان','اونو','بوكر','دومينو','الطاولة','الشطرنج','مواجهة','النرد'];
+
+// INIT: ensure DB seed
+async function ensureSeed(){
+  const snap = await db.ref('/meta/seeded').get();
+  if(!snap.exists()){
+    // add default players as users (password stored plainly - for prototype)
+    const users = {};
+    for(const name of defaultPlayers){
+      users[name] = { password:'6666', icon: name.includes('ة')? '👧':'👦', online:false };
+    }
+    // add admin
+    users['Romany'] = { password:'123456', icon:'👑', role:'admin', online:false };
+    await db.ref('/users').set(users);
+    const games = {}; defaultGames.forEach(g=> games[g]={name:g});
+    await db.ref('/gamesList').set(games);
+    await db.ref('/meta/seeded').set(true);
+  }
+}
+ensureSeed().catch(console.error);
+
+// helper to refresh data every 15s
+async function refreshAll(){
+  // fetch users
+  const uSnap = await db.ref('/users').get();
+  localState.players = uSnap.exists() ? Object.keys(uSnap.val()) : [];
+  // fetch games list and active games
+  const gl = await db.ref('/gamesList').get();
+  const gamesList = gl.exists() ? Object.keys(gl.val()) : [];
+  const runningSnap = await db.ref('/activeGames').get();
+  const running = runningSnap.exists() ? runningSnap.val():{};
+  localState.games = running;
+  // fetch requests
+  const reqSnap = await db.ref('/joinRequests').get();
+  localState.requests = reqSnap.exists() ? reqSnap.val() : {};
+  updateUI();
+}
+setInterval(refreshAll,15000); // every 15s
+refreshAll();
+
+// UI updates
+function updateUI(){
+  // login select
+  loginSelect.innerHTML = '';
+  localState.players.forEach(name=> {
+    const opt = document.createElement('option'); opt.value = name; opt.textContent = name;
+    loginSelect.appendChild(opt);
+  });
+  // games select
+  db.ref('/gamesList').get().then(s=>{
+    const sel = document.getElementById('gameSelect');
+    sel.innerHTML=''; 
+    if(s.exists()){
+      Object.keys(s.val()).forEach(g=>{ const o=document.createElement('option'); o.value=g;o.textContent=g; sel.appendChild(o); })
+    }
+  });
+  // online/offline lists
+  db.ref('/users').get().then(s=>{
+    const users = s.exists()? s.val():{};
+    const onlineDiv = document.getElementById('onlineList'); const offlineDiv = document.getElementById('offlineList');
+    onlineDiv.innerHTML=''; offlineDiv.innerHTML='';
+    Object.keys(users).forEach(name=>{
+      const el = document.createElement('div'); el.className='card inline'; el.textContent = (users[name].icon||'') + ' ' + name;
+      if(users[name].online){
+        onlineDiv.appendChild(el);
+      } else offlineDiv.appendChild(el);
+    });
+  });
+  // running games
+  const runningDiv = document.getElementById('runningGames'); runningDiv.innerHTML='';
+  const finishedDiv = document.getElementById('finishedGames'); finishedDiv.innerHTML='';
+  const games = localState.games || {};
+  Object.keys(games).forEach(id=>{
+    const g = games[id];
+    const el = document.createElement('div'); el.className='card inline'; el.style.minWidth='200px';
+    el.innerHTML = `<strong>${g.gameName}</strong><div class="muted">${g.status||'running'}</div>`;
+    const btn = document.createElement('button'); btn.className='btn'; btn.textContent='▶️ افتح'; btn.onclick=()=> openGame(id);
+    el.appendChild(btn);
+    if(g.ended) finishedDiv.appendChild(el); else runningDiv.appendChild(el);
+  });
+  // admin area
+  const reqDiv = document.getElementById('requests'); reqDiv.innerHTML='';
+  Object.keys(localState.requests || {}).forEach(k=>{
+    const r = localState.requests[k]; const d=document.createElement('div'); d.className='card';
+    d.innerHTML = `<div>${r.name} - ${r.icon}</div>`;
+    const a=document.createElement('button'); a.className='btn'; a.textContent='✔️ قبول'; a.onclick=()=> handleRequest(k,true);
+    const x=document.createElement('button'); x.className='btn gray'; x.textContent='✖️ رفض'; x.onclick=()=> handleRequest(k,false);
+    d.appendChild(a); d.appendChild(x); reqDiv.appendChild(d);
+  });
+}
+
+// Login flow (custom auth using /users node)
+loginBtn.onclick = async ()=>{
+  const name = loginSelect.value; const pass = document.getElementById('loginPass').value;
+  if(!name){ loginMsg.textContent='اختار اسم'; return; }
+  const snap = await db.ref('/users/'+name).get();
+  if(!snap.exists()){ loginMsg.textContent='هذا الاسم غير مسجل'; return; }
+  const data = snap.val();
+  if(data.password !== pass){ loginMsg.textContent='كلمة السر خاطئة'; return; }
+  // set online
+  await db.ref('/users/'+name+'/online').set(true);
+  currentUser = { name, ...data };
+  document.getElementById('userBox').textContent = `${currentUser.icon||''} ${name}`;
+  document.getElementById('logoutBtn').style.display='inline-block';
+  document.getElementById('activateBtn').style.display='inline-block';
+  loginMsg.textContent='';
+  showPage(2); refreshAll();
+};
+
+openRegister.onclick = ()=> showPage(1);
+document.getElementById('sendReq').onclick = async ()=>{
+  const name = document.getElementById('regName').value.trim(); const pass = document.getElementById('regPass').value;
+  const icon = document.getElementById('regIcon').value;
+  if(!name){ alert('اكتب اسم'); return; }
+  // push request
+  await db.ref('/joinRequests').push({ name, password:pass, icon, created:Date.now() });
+  alert('تم إرسال الطلب للمدير');
+  showPage(0);
+};
+
+// admin login - simple prompt for Romany
+loginAdmin.onclick = async ()=>{
+  const name = prompt('اسم المدير (Romany)'); const pass = prompt('كلمة السر');
+  if(name==='Romany' && pass==='123456'){
+    // mark admin online
+    await db.ref('/users/Romany/online').set(true);
+    currentUser = { name:'Romany', role:'admin', icon:'👑' };
+    document.getElementById('userBox').textContent = '👑 Romany';
+    document.getElementById('logoutBtn').style.display='inline-block';
+    showPage(5);
+    refreshAll();
+  } else alert('بيانات خاطئة');
+};
+
+logoutBtn.onclick = async ()=>{
+  if(currentUser){
+    await db.ref('/users/'+currentUser.name+'/online').set(false);
+    currentUser = null;
+    document.getElementById('userBox').textContent = 'غير مسجل';
+    document.getElementById('logoutBtn').style.display='none';
+    document.getElementById('activateBtn').style.display='none';
+    showPage(0);
+    refreshAll();
+  }
+};
+
+activateBtn.onclick = ()=> refreshAll();
+
+// handle requests (admin)
+async function handleRequest(key, accept){
+  const r = (await db.ref('/joinRequests/'+key).get()).val();
+  if(!r) return;
+  if(accept){
+    // create user
+    await db.ref('/users/'+r.name).set({ password:r.password, icon:r.icon, online:false });
+    alert('تم قبول اللاعب '+r.name);
+  }
+  await db.ref('/joinRequests/'+key).remove();
+  refreshAll();
+}
+
+// start game flow
+document.getElementById('startGameBtn').onclick = async ()=>{
+  if(!currentUser){ alert('سجل دخول أولاً'); return; }
+  // choose game and select players from online list (multi-select simple)
+  const gameName = document.getElementById('gameSelect').value;
+  // load online users
+  const usersSnap = await db.ref('/users').get(); const users = usersSnap.val()||{};
+  const online = Object.keys(users).filter(n=> users[n].online && n!==currentUser.name);
+  // dialog simple: ask to invite comma-separated names
+  const invite = prompt('اكتب أسماء اللاعبين من Online مفصولة بفاصلة\nمتاح: '+online.join(','), online.join(','));
+  if(invite===null) return;
+  const invited = invite.split(',').map(s=>s.trim()).filter(Boolean);
+  // ensure all invited are online
+  const invalid = invited.filter(n=> !users[n] || !users[n].online);
+  if(invalid.length){ alert('اللاعبون غير متصلين: '+invalid.join(',')); return; }
+  // create activeGame
+  const newRef = db.ref('/activeGames').push();
+  const gameObj = {
+    gameName, createdBy: currentUser.name, players: {}, status:'waiting', createdAt:Date.now(), recorder:null, rounds:{}
+  };
+  // set invited players state = pending
+  invited.forEach(n=> gameObj.players[n] = { status:'pending', score:0 });
+  // include starter as accepted
+  gameObj.players[currentUser.name] = { status:'accepted', score:0 };
+  await newRef.set(gameObj);
+  // send invites by writing invitations node per user
+  Object.keys(gameObj.players).forEach(p=>{
+    if(p!==currentUser.name) db.ref('/invitations/'+p+'/'+newRef.key).set({ from: currentUser.name, gameName, status:'pending' });
+  });
+  refreshAll();
+  alert('دعوات أرسلت'); showPage(3);
+};
+
+// accept invitation dialog (client polls invitations node)
+setInterval(async ()=>{
+  if(!currentUser) return;
+  const invSnap = await db.ref('/invitations/'+currentUser.name).get();
+  if(!invSnap.exists()) return;
+  const inv = invSnap.val();
+  Object.keys(inv).forEach(async key=>{
+    const info = inv[key];
+    const ans = confirm(`دعوة للانضمام للعبة ${info.gameName} من ${info.from}\nهل تقبل؟`);
+    if(ans){
+      // update game player status
+      await db.ref('/activeGames/'+key+'/players/'+currentUser.name+'/status').set('accepted');
+      await db.ref('/invitations/'+currentUser.name+'/'+key).remove();
+      refreshAll();
+    } else {
+      // set declined and remove invitation
+      await db.ref('/activeGames/'+key+'/players/'+currentUser.name+'/status').set('declined');
+      await db.ref('/invitations/'+currentUser.name+'/'+key).remove();
+      refreshAll();
+    }
+  });
+},5000);
+
+// open game page
+async function openGame(id){
+  const gSnap = await db.ref('/activeGames/'+id).get(); if(!gSnap.exists()){ alert('لم يتم العثور على الجيم'); return; }
+  const g = gSnap.val(); g._id = id;
+  // check if user allowed to view
+  if(!currentUser){ alert('سجل دخول أولاً'); return; }
+  // populate header and rounds
+  document.getElementById('gameHeader').innerHTML = `<div><strong>${g.gameName}</strong> - مدير: ${g.createdBy}</div>`;
+  // build top 3 and table
+  const playersArr = Object.keys(g.players).map(n=> ({name:n, score:g.players[n].score||0}) ).sort((a,b)=> b.score-a.score);
+  const topDiv = document.getElementById('topPlayers'); topDiv.innerHTML='';
+  playersArr.slice(0,3).forEach(p=> { const c=document.createElement('div'); c.className='card'; c.style.minWidth='120px'; c.innerHTML=`<div>${p.name}</div><div class="muted">${p.score}</div>`; topDiv.appendChild(c); });
+  // rounds area
+  const roundsDiv = document.getElementById('roundsArea'); roundsDiv.innerHTML='';
+  const rounds = g.rounds || {};
+  // show total row
+  const table = document.createElement('table'); const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr'); headerRow.innerHTML = '<th>الجولة</th>' + playersArr.map(p=>`<th>${p.name}</th>`).join(''); thead.appendChild(headerRow); table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  // rounds in reverse (last on top)
+  const roundKeys = Object.keys(rounds||{}).reverse();
+  roundKeys.forEach((rk,idx)=>{
+    const r = rounds[rk];
+    const tr = document.createElement('tr'); tr.innerHTML = `<td>${r.name||('جولة '+rk)}</td>` + playersArr.map(p=>`<td>${r.scores && r.scores[p.name] != null ? r.scores[p.name] : ''}</td>`).join('');
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  roundsDiv.appendChild(table);
+  // store current game in local var for actions
+  window._openGame = g; window._openGameId = id;
+  showPage(4);
+}
+
+// add round (only accepted players or recorder can)
+document.getElementById('addRoundBtn').onclick = async ()=>{
+  const g = window._openGame; const id = window._openGameId; if(!g) return alert('افتح جيم أولاً');
+  // check permissions: if currentUser is accepted or is createdBy
+  if(!g.players[currentUser.name] || g.players[currentUser.name].status!=='accepted'){ return alert('غير مصرح لك بإضافة جولات'); }
+  const roundName = prompt('اسم الجولة (اختياري)');
+  // prompt scores for each player sequentially
+  const scores = {};
+  for(const p of Object.keys(g.players)){
+    const val = prompt(`السكور للاعب ${p} (اترك فارغ إن لم يكن)`,'0');
+    if(val!==null && val!=='') scores[p] = parseInt(val||0);
+  }
+  const newRef = db.ref('/activeGames/'+id+'/rounds').push();
+  await newRef.set({ name: roundName || ('جولة '+Date.now()), scores });
+  // update total scores
+  const gSnap = await db.ref('/activeGames/'+id).get(); const g2 = gSnap.val();
+  for(const p of Object.keys(g2.players)){
+    let total = 0;
+    const rs = g2.rounds || {};
+    Object.values(rs).forEach(r=>{ if(r.scores && r.scores[p]) total += Number(r.scores[p]) });
+    await db.ref('/activeGames/'+id+'/players/'+p+'/score').set(total);
+  }
+  refreshAll(); openGame(id);
+};
+
+// end game
+document.getElementById('endGameBtn').onclick = async ()=>{
+  const g = window._openGame; const id = window._openGameId; if(!g) return;
+  // only allow creator or accepted partner to end (simplified: creator only)
+  if(currentUser.name !== g.createdBy && currentUser.role!=='admin'){ return alert('غير مصرح لك بإنهاء الجيم'); }
+  await db.ref('/activeGames/'+id+'/ended').set(true);
+  await db.ref('/activeGames/'+id+'/endedAt').set(Date.now());
+  // mark ended flag
+  await db.ref('/activeGames/'+id+'/ended').set(true);
+  refreshAll(); showPage(3);
+};
+
+// admin actions: add game
+document.getElementById('addGameBtn').onclick = async ()=>{
+  const name = prompt('اسم اللعبة الجديد');
+  if(!name) return;
+  await db.ref('/gamesList/'+name).set({name});
+  refreshAll();
+};
+
+// stats simple
+document.getElementById('openStatsBtn').onclick = ()=> showPage(6);
+
+// page navigation guards: prevent entering a game already started (simple enforcement)
+async function guardNext(){
+  if(pageIndex===2){ // from home to games? no guard
+    return true;
+  }
+  return true;
+}
+document.getElementById('nextBtn').onclick = async ()=>{ const ok = await guardNext(); if(ok) showPage(pageIndex+1); };
+
+// initial UI refresh
+refreshAll();
+
+// warn on unload: set offline
+window.addEventListener('beforeunload', async ()=>{
+  if(currentUser) await db.ref('/users/'+currentUser.name+'/online').set(false);
+});
+</script>
+</body>
+</html>
