@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Romany Score Prototype</title>
+  <style>
+    body { font-family: Tahoma, sans-serif; background: #f7f9fc; margin: 0; padding: 0; }
+    header { display: flex; justify-content: space-between; align-items: center; background: #4a90e2; color: #fff; padding: 10px 20px; }
+    header .left, header .right { font-weight: bold; }
+    main { padding: 20px; }
+    .page { display: none; }
+    .active { display: block; }
+    button { padding: 10px 15px; margin: 5px; border: none; border-radius: 5px; background: #4a90e2; color: #fff; cursor: pointer; }
+    button:hover { background: #357ab7; }
+    .nav-buttons { margin-top: 20px; }
+    h2 { color: #333; }
+    ul { list-style: none; padding: 0; }
+    li { margin: 5px 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="left">🚪 خروج</div>
+  <div class="right" id="playerName">👤 الضيف</div>
+</header>
+
+<main>
+  <!-- صفحة الدخول -->
+  <section class="page active" id="page0">
+    <h2>🔑 صفحة الدخول</h2>
+    <p>اختر اللاعب وأدخل كلمة المرور.</p>
+    <select>
+      <option>روماني</option>
+      <option>عبير</option>
+      <option>جورج</option>
+      <option>نرمين</option>
+      <option>هاني</option>
+      <option>نيبال</option>
+      <option>شنوده</option>
+      <option>هناء</option>
+    </select>
+    <br /><br />
+    <input type="password" placeholder="كلمة المرور" />
+    <br /><br />
+    <button onclick="goToPage(2)">دخول</button>
+    <button onclick="goToPage(1)">تسجيل لاعب جديد</button>
+    <button onclick="goToPage(5)">دخول كمدير</button>
+  </section>
+
+  <!-- صفحة تسجيل لاعب جديد -->
+  <section class="page" id="page1">
+    <h2>🆕 تسجيل لاعب جديد</h2>
+    <p>الاسم + كلمة السر + اختيار شكل.</p>
+    <button onclick="goToPage(0)">إرسال وعودة</button>
+  </section>
+
+  <!-- صفحة اللاعب -->
+  <section class="page" id="page2">
+    <h2>👤 صفحة اللاعب</h2>
+    <p>مرحبًا بك! اختر لعبة أو شاهد اللاعبين Online.</p>
+    <ul>
+      <li>📌 Online: روماني، جورج</li>
+      <li>📌 Offline: عبير، نرمين...</li>
+    </ul>
+    <button onclick="goToPage(3)">📂 الجيمات الجارية والمنتهية</button>
+    <button onclick="goToPage(4)">▶️ ابدأ جيم جديد</button>
+    <button onclick="goToPage(6)">📊 إحصائياتي</button>
+  </section>
+
+  <!-- صفحة الجيمات -->
+  <section class="page" id="page3">
+    <h2>📂 الجيمات الجارية والمنتهية</h2>
+    <p>جيم 1 - جاري</p>
+    <p>جيم 2 - منتهي</p>
+  </section>
+
+  <!-- صفحة داخل الجيم -->
+  <section class="page" id="page4">
+    <h2>🎮 داخل الجيم</h2>
+    <p>اسم اللعبة: أونو</p>
+    <table border="1" cellpadding="5">
+      <tr><th>لاعب</th><th>المجموع</th></tr>
+      <tr><td>روماني</td><td>10</td></tr>
+      <tr><td>جورج</td><td>5</td></tr>
+    </table>
+    <button>➕ إضافة جولة</button>
+    <button>✅ إنهاء الجيم</button>
+  </section>
+
+  <!-- لوحة المدير -->
+  <section class="page" id="page5">
+    <h2>⚙️ لوحة المدير</h2>
+    <p>إدارة اللاعبين + الألعاب + الجيمات.</p>
+  </section>
+
+  <!-- صفحة الإحصائيات -->
+  <section class="page" id="page6">
+    <h2>📊 صفحة الإحصائيات</h2>
+    <p>إحصائيات الألعاب واللاعبين.</p>
+  </section>
+
+  <div class="nav-buttons">
+    <button onclick="prevPage()">⏮️ رجوع</button>
+    <button onclick="nextPage()">⏭️ تقدم</button>
+  </div>
+</main>
+
+<script>
+  let currentPage = 0;
+  const totalPages = 6;
+
+  function showPage(page) {
+    document.querySelectorAll('.page').forEach((p, idx) => {
+      p.classList.remove('active');
+      if (idx === page) p.classList.add('active');
+    });
+    currentPage = page;
+  }
+
+  function nextPage() {
+    if (currentPage < totalPages) showPage(currentPage + 1);
+  }
+
+  function prevPage() {
+    if (currentPage > 0) showPage(currentPage - 1);
+  }
+
+  function goToPage(page) {
+    showPage(page);
+  }
+</script>
+
+</body>
+</html>
